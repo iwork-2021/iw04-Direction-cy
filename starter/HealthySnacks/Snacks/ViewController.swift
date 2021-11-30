@@ -27,6 +27,8 @@
 /// THE SOFTWARE.
 
 import UIKit
+import CoreML
+import Vision
 
 class ViewController: UIViewController {
   
@@ -38,6 +40,23 @@ class ViewController: UIViewController {
   @IBOutlet var resultsConstraint: NSLayoutConstraint!
 
   var firstTime = true
+    
+    lazy var classificationRequest: VNCoreMLRequest = {
+            do{
+                let classifier = try SnacksClassifier(configuration: MLModelConfiguration())
+                let model = try VNCoreMLModel(for: classifier.model)
+                let request = VNCoreMLRequest(model: model, completionHandler: {
+                    [weak self] request,error in
+                    self?.processObservations(for: request, error: error)
+                })
+                request.imageCropAndScaleOption = .centerCrop
+                return request
+                
+                
+            } catch {
+                fatalError("Failed to create request")
+            }
+        }()
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -96,7 +115,29 @@ class ViewController: UIViewController {
   }
 
   func classify(image: UIImage) {
+      let handler = VNImageRequestHandler(cgImage: image.cgImage!)
+      try! handler.perform([self.classificationRequest])
+      self.showResultsView()
   }
+    
+    func processObservations(for request: VNRequest, error: Error?) {
+            if let results = request.results as? [VNClassificationObservation] {
+                if results.isEmpty {
+                    self.resultsLabel.text = "Nothing found"
+                } else {
+                    let top3 = results.prefix(3).map({
+                        observation in
+                        String(format:"%@: %.1f%%", observation.identifier, observation.confidence * 100)
+                    })
+                    self.resultsLabel.text = top3.joined(separator: "\n")
+                }
+            } else if let error = error {
+                self.resultsLabel.text = "Error: \(error.localizedDescription)"
+            } else {
+                self.resultsLabel.text = "???"
+            }
+        }
+    
 }
 
 extension ViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
@@ -109,3 +150,5 @@ extension ViewController: UIImagePickerControllerDelegate, UINavigationControlle
     classify(image: image)
   }
 }
+
+
