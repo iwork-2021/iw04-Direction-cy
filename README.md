@@ -34,3 +34,54 @@ iOS assignment 4: Image Classification App.
 
 通过train_model.ipynb，学习PyTorch训练模型流程，以及如何将PyTorch模型转换为mlmodel的格式
 
+## 实验过程
+
+在完成模型训练后，查看模型的输入，CVPixelBuffer
+
+在网络上找到了一个UIimage 到 CVPixelBuffer 的函数
+
+    func imageToCVPixelBuffer(image:UIImage) -> CVPixelBuffer? {
+
+      ...
+
+    }
+
+在processObservations中根据confidence 完成准确性的判断
+
+    func processObservations(for request: VNRequest, error: Error?) {
+            
+      ...      
+      
+      let identifier = results[0].identifier
+      let confidence = results[0].confidence
+      if confidence < 0.6 {
+        self.resultsLabel.text = "I'm Not Sure\n"
+      } else {
+        self.resultsLabel.text = String(format:"%@: %.1f%%\n", identifier, confidence * 100)
+      }
+                
+      ...
+
+    }
+
+通过多线程完成加载
+
+    DispatchQueue.main.async {
+      let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer)
+      do {
+          try handler.perform([self.classificationRequest])
+          //种类识别
+      } catch {
+          print("Failed to perform classification: \(error)")
+      }
+    
+      do {
+          try handler.perform([self.healthyclassificationRequest])
+          //健康识别
+      } catch {
+          print("Failed to perform classification: \(error)")
+      }
+                
+    }
+
+由于硬件原因，我未能完成拍照识别的功能，我在群里已经加以说明
